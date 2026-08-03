@@ -27,3 +27,5 @@ Thumbs.db
 
 # Quartus workspace
 *.qws
+#others
+Other_docs/CLAUDE_CODE_HANDOFF.md
