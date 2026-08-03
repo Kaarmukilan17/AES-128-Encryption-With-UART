@@ -16,21 +16,7 @@ Full walkthrough: [docs/06_how_to_use.md](docs/06_how_to_use.md)
 
 ## System Block Diagram
 
-```
-                 ┌────────────────────────── DE2-115 ───────────────────────────┐
- PC (PuTTY) ──►  UART_RXD ─► 2-FF sync ─► uart_rx ─► uart_rx_128 ─► plaintext   │
-                 │                                                     │        │
-                 │  SW[3:0] ─► key_rom128 ──────────► key ──────► aes_core      │
-                 │                                    (FSM + shared datapath)   │
-                 │  SW5 (start) ────────────────────────────────►│              │
-                 │  SW17 ─► debounce ─► manual AES clock ───────►│              │
-                 │                                          ciphertext          │
-                 │  SW7 (debug_sel) ─► plaintext/ciphertext mux                 │
-                 │                        │                                     │
-                 │  KEY0 ─► scroll ─► top_128bit_display ─► HEX7..HEX0          │
-                 │  LEDR[17:0] UART debug     LEDG[7:0] status/round count      │
-                 └──────────────────────────────────────────────────────────────┘
-```
+![Architecture](Other_docs/architechture.png)
 
 ## Features
 
