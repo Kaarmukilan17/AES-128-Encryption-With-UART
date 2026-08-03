@@ -18,6 +18,7 @@ Full walkthrough: [docs/06_how_to_use.md](docs/06_how_to_use.md)
 
 ![Architecture](Other_docs/architechture.png)
 
+![top module](docs/images/rtl/top_module.png)
 ## Features
 
 - Full AES-128 (NIST FIPS 197) encryption, verified on hardware
