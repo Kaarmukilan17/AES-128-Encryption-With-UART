@@ -1,0 +1,29 @@
+# Quartus generated files
+db/
+incremental_db/
+output_files/*.rpt
+output_files/*.smsg
+output_files/*.summary
+output_files/*.done
+output_files/*.eda.rpt
+output_files/*.flow.rpt
+output_files/*.jdi
+output_files/*.pin
+output_files/*.sld
+output_files/*.vo
+simulation/
+
+# Keep the .sof (programming file) and .cdf
+!output_files/*.sof
+!output_files/*.cdf
+
+# Backup files
+*.bak
+*.bak2
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Quartus workspace
+*.qws

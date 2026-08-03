@@ -1,0 +1,228 @@
+1 ADD all the videos taken in LAB
+and organise them
+2 TAKE SCREENSHOTS OF NECESSARY IMAGES SAIF 
+3 ADD VIDEOS TO DOC, BOARD IMAGES  MARKED WITH PIN DIAGRAM - PROPER README WITH  MAIN STUFF
+LINK OF CRYPTOOL WEBSIRTE?
+-------------------------TENTATIVE IDEAS -- NOT FINAL
+
+
+Good questions. Let me think through all of this properly.
+
+---
+
+**On splitting `top.v` into individual files**
+
+Yes, absolutely do it. Here's why it's worth the effort:
+
+The current single file has 18 modules crammed together. When someone browses your GitHub repo they see one file. When you split them they see a proper src/ folder with named files — `debounce.v`, `edge_detector.v`, `uart_rx.v`, `uart_rx_128.v`, `aes_subbytes.v` etc. It immediately reads as a real engineered project, not a student paste. It also makes the module hierarchy obvious without reading a single line of code.
+
+The split also helps when you explain individual contributions — Jonish can point to `aes_subbytes.v` specifically, Raajaprasanna to `aes_shiftrows.v`, etc.
+
+Suggested file split:
+```
+
+You'll need to add all these paths to the `.qsf` — straightforward.
+
+---
+
+**On RTL/netlist views**
+
+Great idea but be selective about which ones you include. The ones worth showing:
+
+- `top` RTL — shows the full system wiring at a glance, most impressive
+- `aes_core` RTL — shows the 11 pipeline stages visually, this is the money shot
+- `aes_keyschedule` RTL — shows the generate loop expanding into parallel hardware
+- `uart_rx` RTL — shows the FSM states as actual flip-flop chains
+- `top_128bit_display` RTL — shows the debounce → edge → counter → mux → display chain
+
+Skip the trivial ones like `hex_to_7seg` and `mux4x1_32bit` — they're just LUT tables, nothing interesting visually.
+
+Capture them as PNG from Quartus RTL Viewer at high resolution. Put them in `docs/images/rtl/`.
+
+---
+
+**On the AES website link**
+
+Yes, include this in `07_test_vectors.md` and in `06_how_to_use.md`. The best one is:
+
+`https://www.cryptool.org/en/cto/aes-step-by-step`
+
+It shows each round step by step which matches your module structure perfectly. Also good:
+
+`https://aesencryption.net` — quick online verify
+
+In the doc, write it as: *"To verify any result independently, paste your plaintext and key into [this AES-128 ECB calculator] and confirm the ciphertext matches what the FPGA displays."*
+
+---
+
+**Problems you can document and explain — these are the good engineering stories**
+
+This is actually the strongest part of any good project doc. Here's what you genuinely faced and can explain:
+
+**1. Metastability — the UART_RXD synchronizer**
+The problem: UART_RXD changes asynchronously relative to CLOCK_50. If it changes near a clock edge, the flip-flop output is undefined for an unpredictable time. The fix: 2-FF synchronizer. This is a textbook FPGA engineering concept and shows you know what you're doing beyond just making it work.
+
+**2. Mechanical switch bounce**
+The `debounce` module exists because mechanical switches don't produce clean transitions — they bounce for 1–20ms. Without debouncing, one button press triggers hundreds of edge pulses, scrolling the display multiple segments or clocking AES multiple times. You solved it with a 20-bit counter (~20ms at 50MHz).
+
+**3. Single-cycle pulse visibility**
+`dbg_is_hex` fires for exactly 1 clock cycle = 20ns at 50MHz. The human eye needs ~10ms minimum to perceive an LED flash. 20ns is 500,000 times too fast. You solved it with the stretch register — reload `20'hFFFFF` (about 20ms worth of cycles) on each pulse, decrement until zero. Document this with the actual math.
+
+**4. UART FSM getting stuck**
+Without `default: state <= IDLE`, if the FSM ever lands in an undefined state (possible on power-on before reset settles, or due to noise), it would freeze forever. The `default` case is a 1-line fix with significant reliability impact.
+
+**5. Hardwired reset to 1'b0**
+Original design had `.rst(1'b0)` — the UART could never be reset, meaning any glitch at startup could corrupt the FSM permanently, requiring reprogramming. Changed to `.rst(reset)` and propagated through all levels.
+
+**6. The `done` signal re-triggering the counter**
+`clk_counter` resets on `done | reset`. Why `done` and not just `reset`? Because after encryption completes, if you press clk_btn again the counter would keep incrementing past 11, giving you wrong readings. `done` auto-resets it so the next encryption starts counting fresh from zero.
+
+**7. Active-low 7-segment displays**
+The DE2-115 seven-segment displays are active-low — a `0` turns a segment ON, not `1`. This is a common mistake. If you got garbled display initially and had to invert the encoding, document that.
+
+**8. STA negative slack — but it doesn't matter**
+The timing report shows negative slack on CLOCK_50. This looks like a failure but it's not — the AES combinational path (SubBytes → ShiftRows → MixColumns → AddRoundKey through the S-Box LUT chains) is too long for 50MHz. But your design uses a manual button clock, so the combinational path gets effectively unlimited time to settle between button presses. Document this honestly — it's a real trade-off between the non-pipelined iterative design and what a fully clocked 50MHz implementation would need.
+
+**9. Key ROM loaded from file**
+`$readmemh("key.txt", mem)` loads at synthesis time — the file path is relative to the Quartus project directory. This is a common gotcha when the project is moved to a different machine. Document where the file must be placed.
+
+---
+
+**Other things worth adding to the repo**
+
+A `VERIFICATION.md` that specifically shows one worked example end to end — you type `00112233445566778899AABBCCDDEEFF`, SW=0000, you get `69C4E0D86A7B0430D8CDB78070B4C55A`, and you can verify it on the website. Cross-referencing hardware output with software reference is strong evidence the implementation is correct.
+
+A `KNOWN_ISSUES.md` or a section in README — honest documentation of known limitations is actually a sign of good engineering:
+- No UART TX (can't echo ciphertext back to terminal)
+- Non-pipelined runs at manual clock only, not 50MHz
+- STA negative slack (explained above)
+- No decryption
+- Key ROM is static (no UART key loading)
+
+Shall I start generating the actual files now?
+
+
+Let me first read the zip to understand the final file structure.Now I have everything. Let me plan the full documentation structure:Now I have the complete picture. Here is the full documentation plan — brainstormed and structured before writing a single line:
+
+---
+
+## Documentation Plan
+
+### Repository Structure
+
+```
+AES-128-UART-FPGA/### What each file contains — in detail
+
+**`README.md`** — the showcase page, the one everyone lands on
+
+- Project title + one-line description
+- Animated GIF or thumbnail linking to demo video
+- Feature badges: `Verified on FPGA` · `NIST AES-128` · `Cyclone IV E` · `9600 baud UART`
+- Quick-start block (3 commands / steps to get running)
+- System block diagram inline (SVG or image)
+- Table of contents linking to all docs
+- Resource summary table (6,485 LEs / 114,480 · 567 registers · 0 PLLs)
+- Team / author section
+- License
+
+**`01_architecture.md`** — the engineering overview
+
+- Full system block diagram with all 18 modules labelled
+- Data flow narrative: UART RX → 128-bit latch → AES core → 7-seg display
+- Clock domain table: CLOCK_50 domain vs debounced clk domain, what lives in each
+- Design decisions: why manual clock, why ROM for keys, why 2-FF synchronizer
+- Module hierarchy tree
+
+**`02_aes_core.md`** — the technical heart
+
+- AES-128 algorithm summary (10 rounds, 4 transformations)
+- Pipeline architecture explanation with stage-by-stage breakdown
+- Each sub-module: what it does, key code snippet, why it works
+- `done_sr` shift register explained
+- Key schedule: RotWord, SubWord, Rcon table
+- The `xtime` GF(2⁸) function explained with an example
+- Why Stage 10 skips MixColumns
+
+**`03_uart_input.md`** — UART subsystem
+
+- Protocol: 9600 baud, 8N1, no flow control
+- FSM state diagram for `uart_rx`: IDLE→START→DATA→STOP
+- `CLKS_PER_BIT` calculation (50MHz / 9600 = 5208)
+- Why the 2-FF synchronizer is needed (metastability)
+- `uart_rx_128` accumulator: how 32 ASCII hex chars become 128 bits
+- What happens on Enter: latch, reset, hold
+- Reset handling: why `.rst(reset)` not `.rst(1'b0)`
+
+**`04_display_system.md`** — display + debug
+
+- Display scrolling: how 128 bits → 4 × 32-bit segments → 8 × 7-seg digits
+- `mux4x1_32bit` → `eight_sevenseg_32bit` → `hex_to_7seg` chain
+- Active-low encoding table for all 16 hex digits
+- `debounce` + `edge_detector` explained: why both are needed
+- Full LEDR[17:0] debug LED reference with what to expect at each stage
+- LEDG[7:0] mapping: status + clock counter + done
+
+**`05_pin_assignments.md`** — complete pinout
+
+- Board photo with annotations (you add this)
+- Complete table: signal → DE2-115 SW/pin label → Quartus PIN_xxx
+- Specifically: clk_btn=SW17=PIN_Y23, reset=SW10=PIN_AC24, start=SW5=PIN_AC26, debug_sel=SW7=PIN_AB26, btn=KEY0=PIN_M23, UART_RXD=PIN_G12
+- `.qsf` snippet to copy-paste
+- Warning about SW[10] being SW18-group (explain numbering)
+
+**`06_how_to_use.md`** — the walkthrough
+
+Step by step, with expected observations at each step:
+
+1. Program the FPGA (`.sof` file location)
+2. Check LEDR[17] = ON (idle line sanity check)
+3. Open PuTTY: settings screenshot or text instructions
+4. Type 32 hex chars — watch LEDR[14:10] count
+5. LEDR[15] HIGH = ready
+6. Press Enter — LEDR[16] blinks
+7. Set SW[3:0] for key
+8. debug_sel=0 → verify plaintext on display
+9. Flip SW5 (start) HIGH then LOW
+10. Press SW17 (clk_btn) 11 times — watch LEDG[6:2] count
+11. LEDG[7] goes HIGH = done
+12. debug_sel=1 → scroll through ciphertext
+13. Compare to expected values table
+
+**`07_test_vectors.md`** — all 16 verified vectors
+
+- Full table: SW setting, plaintext, key, expected ciphertext
+- All verified with PyCryptodome AES-128-ECB
+- Note which are NIST standard vectors
+- How to read display segments to assemble full 128-bit result
+
+**`08_results.md`** — what you measured
+
+- Resource utilization: 6,485 LEs (6%), 567 registers, 0 PLLs, 93 pins
+- Timing note: design uses manual clock so STA negative slack on CLOCK_50 is expected and not a problem — the AES combinational path only needs to settle between manual button presses
+- Compilation: Quartus Prime 22.1 std, May 6 2026, successful
+- What was verified on hardware
+- Known limitations / future work (pipelined version, UART TX to echo ciphertext back, AES-256)
+
+---
+
+### Special content to include that shows engineering depth
+
+- **The 2-FF synchronizer** — explain metastability, show before/after stability comparison — this is a real engineering fix not a student project afterthought
+- **`dbg_is_hex` visibility problem** — document the problem (1 cycle = 20ns = invisible) and the ~20ms stretcher solution — shows awareness of human-hardware interface
+- **The `done|reset` counter reset** — why both signals, not just done
+- **`default: state <= IDLE`** in UART FSM — safe state recovery, explain why
+- **Active-low 7-segment encoding** — include the segment map diagram so anyone reading can verify
+- **Why key stays in ROM not UART** — design decision section
+
+---
+
+### Nice-to-have extras
+
+- A `CONTRIBUTING.md` if others want to extend it
+- A `.gitignore` to exclude `db/`, `incremental_db/`, `output_files/` (except `.sof`), `*.bak`
+- Simulation waveform images (ModelSim) linked inline in the module docs
+- Block diagram as actual SVG committed to repo
+
+---
+
+Shall I start generating these files now, in order? I'd suggest starting with `README.md` + `06_how_to_use.md` first since those are what anyone visiting the repo sees first and what you need for the demo video, then the technical docs after.

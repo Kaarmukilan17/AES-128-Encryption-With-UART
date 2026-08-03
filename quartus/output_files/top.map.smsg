@@ -1,0 +1,1 @@
+Info (10281): Verilog HDL Declaration information at uart_rx.v(11): object "data" differs only in case from object "DATA" in the same scope File: E:/r4lR9lC#e4/FINAL YEAR/AES-128-Encryption-With-UART/src/uart/uart_rx.v Line: 11
