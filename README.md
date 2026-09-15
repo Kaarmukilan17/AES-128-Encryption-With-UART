@@ -16,7 +16,6 @@ Full walkthrough: [docs/06_how_to_use.md](docs/06_how_to_use.md)
 
 ## System Block Diagram
 
-![Architecture](Other_docs/architechture.png)
 
 ![top module](docs/images/rtl/top_module.png)
 ## Features
